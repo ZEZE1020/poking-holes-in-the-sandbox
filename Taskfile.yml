@@ -27,7 +27,7 @@ tasks:
       - tofu -chdir={{.TOFU_DIR}} destroy -auto-approve
 
   validate:
-    desc: Validate all lab manifests without contacting the cluster
+    desc: Validate all lab manifests with kubectl or offline checks
     cmds:
       - |
         set -eu
@@ -37,10 +37,13 @@ tasks:
             echo "validated $manifest"
           done
         else
-          python3 -c 'import yaml' >/dev/null
-          echo "No Kubernetes API server is available; validating YAML syntax locally."
+          echo "No Kubernetes API server is available; running dependency-free manifest checks."
           for manifest in lab1-runc/*.yaml lab2-kata/*.yaml lab3-metrics/*.yaml; do
-            python3 -c 'import sys, yaml; list(yaml.safe_load_all(open(sys.argv[1], encoding="utf-8")))' "$manifest"
+            test -s "$manifest"
+            grep -Eq '^apiVersion:[[:space:]]*[^[:space:]]' "$manifest"
+            grep -Eq '^kind:[[:space:]]*[^[:space:]]' "$manifest"
+            grep -Eq '^metadata:' "$manifest"
+            grep -Eq '^spec:' "$manifest"
             echo "validated $manifest"
           done
         fi
