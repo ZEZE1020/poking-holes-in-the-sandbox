@@ -1,0 +1,48 @@
+# OpenTofu / Terraform state, plans, and working directories
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+tfplan.json
+crash.log
+crash.*.log
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+
+# Generated workshop presentation exports
+docs/slides/*.pdf
+docs/slides/*.pptx
+docs/slides/*.html
+docs/slides/*.png
+docs/slides/*.jpg
+
+# Kubernetes and cloud credentials
+.kube/
+*.kubeconfig
+credentials.json
+application_default_credentials.json
+service-account*.json
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+
+# Logs and temporary files
+*.log
+tmp/
+temp/

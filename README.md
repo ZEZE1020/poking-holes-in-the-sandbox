@@ -37,3 +37,8 @@ virtual machines.
 The workshop intentionally exposes a browser terminal on port 7681. Use this
 only on temporary workshop instances and restrict the firewall source ranges
 for any non-workshop deployment.
+
+## Helper materials
+
+Facilitator notes and the Markdown slide source are available in
+[`docs/`](/home/ogembo/openinfra-workshop/poking-holes-in-the-sandbox/docs/).
