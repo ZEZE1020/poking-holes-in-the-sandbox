@@ -22,13 +22,24 @@ variable "network" {
 }
 
 variable "attendee_count" {
-  description = "Number of dedicated workshop nodes."
+  description = "Total number of workshop attendees."
   type        = number
   default     = 1
 
   validation {
-    condition     = var.attendee_count >= 1 && var.attendee_count <= 100
-    error_message = "attendee_count must be between 1 and 100."
+    condition     = var.attendee_count >= 1 && var.attendee_count <= 500 && var.attendee_count == floor(var.attendee_count)
+    error_message = "attendee_count must be a whole number between 1 and 500."
+  }
+}
+
+variable "attendees_per_node" {
+  description = "Number of attendees sharing each workshop VM."
+  type        = number
+  default     = 2
+
+  validation {
+    condition     = var.attendees_per_node >= 2 && var.attendees_per_node <= 5 && var.attendees_per_node == floor(var.attendees_per_node)
+    error_message = "attendees_per_node must be a whole number between 2 and 5."
   }
 }
 

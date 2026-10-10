@@ -19,6 +19,9 @@ infrastructure data are not part of the lesson.
 - Set `TF_VAR_project_id` through the shell or a local ignored `.env` file.
 - Use `source_ranges` restricted to the attendee network. The configuration
   rejects `0.0.0.0/0`.
+- Remember that attendees sharing one VM also share the `workshop` Linux
+  account and its Kubernetes context. Do not use this layout for confidential
+  or mutually untrusted participants.
 - Never paste access tokens, cloud credentials, kubeconfigs, or private keys
   into lab manifests, documentation, screenshots, or slide notes.
 - Treat OpenTofu state and plans as sensitive because they can contain resource

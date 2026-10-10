@@ -2,13 +2,16 @@
 
 ## Before the session
 
-- Confirm the GCP project, quota, billing, attendee count, and attendee CIDR.
+- Confirm the GCP project, quota, billing, attendee count, attendees per node,
+  and attendee CIDR.
 - Export a restricted firewall range before provisioning:
   `export TF_VAR_source_ranges='["203.0.113.10/32"]'`.
 - Run `task infra:init`, `task infra:plan`, and `task infra:up`.
 - Open each printed ttyd URL once and confirm that `kubectl get nodes` reports
   a Ready node.
 - Verify that `kubectl get runtimeclass kata` succeeds before attendees start.
+- Tell attendees which VM URL they share; this phase provides one ttyd URL per
+  VM, not one URL per attendee.
 - Keep `task infra:down` available for cleanup.
 
 ## Suggested pacing

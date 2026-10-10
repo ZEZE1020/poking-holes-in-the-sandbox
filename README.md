@@ -19,14 +19,15 @@ virtual machines.
    ```bash
    export TF_VAR_project_id=YOUR_PROJECT_ID
    export TF_VAR_attendee_count=1
+   export TF_VAR_attendees_per_node=2
    export TF_VAR_source_ranges='["YOUR_PUBLIC_IP/32"]'
    task infra:init
    task infra:plan
    task infra:up
    ```
 
-4. Open the printed `https://EXTERNAL_IP:7681` URL. The browser terminal runs
-   as the non-root `workshop` user and contains the K3s cluster for the labs.
+4. Open the printed `https://EXTERNAL_IP:7681` URLs. The browser terminals run
+   as the non-root `workshop` user and contain the K3s clusters for the labs.
    A short-lived self-signed certificate is generated on each node, so the
    browser will show a certificate warning during the workshop.
 5. Run the labs in order. Each lab README includes its `ttyd` connection
@@ -40,6 +41,11 @@ virtual machines.
 The workshop intentionally exposes a browser terminal on port 7681. Set
 `TF_VAR_source_ranges` to the attendee network or instructor IP range before
 provisioning; unrestricted internet access is rejected by OpenTofu.
+
+Each VM is shared by `attendees_per_node` attendees. The number of VMs is
+calculated as `ceil(attendee_count / attendees_per_node)`. This phase keeps one
+terminal URL per VM; it does not yet provide per-attendee routing or dynamic
+traffic-based autoscaling.
 
 ## Helper materials
 

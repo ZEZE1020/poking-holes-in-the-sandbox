@@ -16,7 +16,8 @@ provider "google" {
 }
 
 locals {
-  node_names = [for index in range(var.attendee_count) : format("%s-%02d", var.name_prefix, index + 1)]
+  node_count = ceil(var.attendee_count / var.attendees_per_node)
+  node_names = [for index in range(local.node_count) : format("%s-%02d", var.name_prefix, index + 1)]
 }
 
 resource "google_compute_firewall" "workshop" {
@@ -33,7 +34,7 @@ resource "google_compute_firewall" "workshop" {
 }
 
 resource "google_compute_instance" "node" {
-  count        = var.attendee_count
+  count        = local.node_count
   name         = local.node_names[count.index]
   machine_type = "n2-standard-4"
   zone         = var.zone
