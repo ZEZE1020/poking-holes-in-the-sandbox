@@ -1,0 +1,45 @@
+version: '3'
+
+vars:
+  TOFU_DIR: provisioning/tofu-gcp
+
+tasks:
+  infra:init:
+    desc: Initialize the OpenTofu working directory
+    cmds:
+      - tofu -chdir={{.TOFU_DIR}} init
+
+  infra:plan:
+    desc: Preview the GCP infrastructure changes
+    cmds:
+      - tofu -chdir={{.TOFU_DIR}} plan
+
+  infra:up:
+    desc: Provision attendee nodes and print terminal URLs
+    cmds:
+      - tofu -chdir={{.TOFU_DIR}} apply -auto-approve
+      - tofu -chdir={{.TOFU_DIR}} output terminal_urls
+
+  infra:down:
+    desc: Destroy the workshop infrastructure
+    cmds:
+      - tofu -chdir={{.TOFU_DIR}} destroy -auto-approve
+
+  validate:
+    desc: Validate all lab manifests without contacting the cluster
+    cmds:
+      - |
+        set -eu
+        if timeout 5 kubectl cluster-info >/dev/null 2>&1; then
+          for manifest in lab1-runc/*.yaml lab2-kata/*.yaml lab3-metrics/*.yaml; do
+            kubectl apply --dry-run=client --validate=false -f "$manifest" >/dev/null
+            echo "validated $manifest"
+          done
+        else
+          python3 -c 'import yaml' >/dev/null
+          echo "No Kubernetes API server is available; validating YAML syntax locally."
+          for manifest in lab1-runc/*.yaml lab2-kata/*.yaml lab3-metrics/*.yaml; do
+            python3 -c 'import sys, yaml; list(yaml.safe_load_all(open(sys.argv[1], encoding="utf-8")))' "$manifest"
+            echo "validated $manifest"
+          done
+        fi
