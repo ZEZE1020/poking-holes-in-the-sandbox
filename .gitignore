@@ -10,6 +10,8 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 !*.tfvars.example
+.terraformrc
+terraform.rc
 
 # Generated workshop presentation exports
 docs/slides/*.pdf
@@ -24,11 +26,20 @@ docs/slides/*.jpg
 credentials.json
 application_default_credentials.json
 service-account*.json
+*.gcloud/
+*.p12
+*.pfx
+*.jks
 
 # Local environment and secrets
 .env
 .env.*
 !.env.example
+secrets/
+private/
+*.secret
+*.token
+*.credentials
 *.pem
 *.key
 
@@ -46,3 +57,4 @@ Thumbs.db
 *.log
 tmp/
 temp/
+docs/notes/local/

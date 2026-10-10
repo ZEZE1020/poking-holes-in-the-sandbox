@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
 version: '3'
 
 vars:
@@ -43,3 +44,24 @@ tasks:
             echo "validated $manifest"
           done
         fi
+
+  security:check:
+    desc: Check tracked and shareable files for common secrets
+    cmds:
+      - |
+        set -eu
+        files="$(git ls-files --cached --others --exclude-standard)"
+        if [ -z "$files" ]; then
+          echo "No shareable files found."
+          exit 0
+        fi
+        if printf '%s\n' "$files" | grep -Eiq '(^|/)(\.env(\.|$)|.*(secret|credential|token|password|private).*\.(json|ya?ml|tfvars|txt|conf|cfg)$)'; then
+          echo "Potential credential-bearing filename found in shareable files." >&2
+          printf '%s\n' "$files" | grep -Ei '(^|/)(\.env(\.|$)|.*(secret|credential|token|password|private).*\.(json|ya?ml|tfvars|txt|conf|cfg)$)' >&2
+          exit 1
+        fi
+        if git grep -nI -E 'BEGIN (RSA|EC|OPENSSH|DSA|PRIVATE) KEY|AIza[0-9A-Za-z_-]{20,}|-----BEGIN|password[[:space:]]*=[[:space:]]*["'\''][^"'\'']+["'\'']' -- $files ':!Taskfile.yml'; then
+          echo "Potential secret material found. Remove it before committing or uploading." >&2
+          exit 1
+        fi
+        echo "No common secret patterns found in shareable files."

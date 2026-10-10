@@ -4,7 +4,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = "8.6.0"
     }
   }
 }
@@ -57,6 +57,6 @@ resource "google_compute_instance" "node" {
     enable_nested_virtualization = true
   }
 
-  min_cpu_platform = "Intel Cascade Lake"
+  min_cpu_platform        = "Intel Cascade Lake"
   metadata_startup_script = file("${path.module}/../scripts/setup-node.sh")
 }
