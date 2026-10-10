@@ -10,7 +10,7 @@ readonly TTYD_PATH="/usr/local/bin/ttyd"
 readonly K3S_INSTALL_URL="https://get.k3s.io"
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl kmod sudo \
+apt-get install -y --no-install-recommends ca-certificates curl kmod openssl \
   linux-modules-extra-"$(uname -r)" kata-containers stress-ng
 
 modprobe kvm
@@ -19,10 +19,7 @@ modprobe kvm_intel
 if ! id --user "$WORKSHOP_USER" >/dev/null 2>&1; then
   useradd --create-home --shell /bin/bash "$WORKSHOP_USER"
 fi
-usermod --append --groups sudo "$WORKSHOP_USER"
 install -d -m 0750 -o "$WORKSHOP_USER" -g "$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube"
-printf '%s\n' "$WORKSHOP_USER ALL=(ALL) NOPASSWD:ALL" >/etc/sudoers.d/workshop
-chmod 0440 /etc/sudoers.d/workshop
 
 curl --fail --location --retry 5 --output "$TTYD_PATH" "$TTYD_URL"
 chmod 0755 "$TTYD_PATH"
@@ -30,7 +27,7 @@ chmod 0755 "$TTYD_PATH"
 if ! systemctl is-active --quiet k3s; then
   if ! command -v k3s >/dev/null 2>&1; then
     curl --fail --location --retry 5 "$K3S_INSTALL_URL" | \
-      INSTALL_K3S_EXEC="server --disable=traefik --write-kubeconfig-mode=0644" sh -
+      INSTALL_K3S_EXEC="server --disable=traefik --write-kubeconfig-mode=0600" sh -
   else
     systemctl start k3s
   fi
@@ -47,12 +44,26 @@ EOF
   systemctl restart k3s
 fi
 
+chmod 0600 /etc/rancher/k3s/k3s.yaml
+chown root:root /etc/rancher/k3s/k3s.yaml
+
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 kubectl wait --for=condition=Ready node --all --timeout=180s
 
 install -d -m 0750 -o "$WORKSHOP_USER" -g "$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube"
 cp /etc/rancher/k3s/k3s.yaml "/home/$WORKSHOP_USER/.kube/config"
 chown -R "$WORKSHOP_USER:$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube"
 chmod 0600 "/home/$WORKSHOP_USER/.kube/config"
+
+install -d -m 0750 /etc/ttyd
+if [ ! -s /etc/ttyd/server.key ] || [ ! -s /etc/ttyd/server.crt ]; then
+  openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
+    -keyout /etc/ttyd/server.key \
+    -out /etc/ttyd/server.crt \
+    -subj "/CN=workshop-node"
+  chmod 0600 /etc/ttyd/server.key
+  chmod 0644 /etc/ttyd/server.crt
+fi
 
 cat >/etc/systemd/system/ttyd.service <<'EOF'
 [Unit]
@@ -65,7 +76,7 @@ Type=simple
 User=workshop
 WorkingDirectory=/home/workshop
 Environment=TERM=xterm-256color
-ExecStart=/usr/local/bin/ttyd -W -p 7681 /bin/bash
+ExecStart=/usr/local/bin/ttyd --ssl --ssl-cert /etc/ttyd/server.crt --ssl-key /etc/ttyd/server.key -W -p 7681 /bin/bash
 Restart=on-failure
 RestartSec=2
 
@@ -76,7 +87,6 @@ EOF
 systemctl daemon-reload
 systemctl enable --now ttyd.service
 
-export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 kubectl apply -f - <<'EOF'
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass

@@ -19,13 +19,16 @@ virtual machines.
    ```bash
    export TF_VAR_project_id=YOUR_PROJECT_ID
    export TF_VAR_attendee_count=1
+   export TF_VAR_source_ranges='["YOUR_PUBLIC_IP/32"]'
    task infra:init
    task infra:plan
    task infra:up
    ```
 
-4. Open the printed `http://EXTERNAL_IP:7681` URL. The browser terminal runs
+4. Open the printed `https://EXTERNAL_IP:7681` URL. The browser terminal runs
    as the non-root `workshop` user and contains the K3s cluster for the labs.
+   A short-lived self-signed certificate is generated on each node, so the
+   browser will show a certificate warning during the workshop.
 5. Run the labs in order. Each lab README includes its `ttyd` connection
    instructions and cleanup commands.
 6. Destroy the infrastructure when finished:
@@ -34,9 +37,9 @@ virtual machines.
    task infra:down
    ```
 
-The workshop intentionally exposes a browser terminal on port 7681. Use this
-only on temporary workshop instances and restrict the firewall source ranges
-for any non-workshop deployment.
+The workshop intentionally exposes a browser terminal on port 7681. Set
+`TF_VAR_source_ranges` to the attendee network or instructor IP range before
+provisioning; unrestricted internet access is rejected by OpenTofu.
 
 ## Helper materials
 

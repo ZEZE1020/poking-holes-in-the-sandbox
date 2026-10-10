@@ -45,7 +45,11 @@ variable "boot_image" {
 }
 
 variable "source_ranges" {
-  description = "CIDR ranges allowed to reach SSH and ttyd."
+  description = "Explicit CIDR ranges allowed to reach SSH and ttyd. Do not use 0.0.0.0/0."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+
+  validation {
+    condition     = length(var.source_ranges) > 0 && alltrue([for source_range in var.source_ranges : can(cidrhost(source_range, 0)) && source_range != "0.0.0.0/0"])
+    error_message = "source_ranges must contain at least one valid, restricted CIDR and must not include 0.0.0.0/0."
+  }
 }

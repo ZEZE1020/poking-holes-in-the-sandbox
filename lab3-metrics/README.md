@@ -2,8 +2,9 @@
 
 ## Connect
 
-Use the `http://EXTERNAL_IP:7681` URL printed by `task infra:up`. The terminal
-is already on the node hosting the K3s control plane.
+Use the `https://EXTERNAL_IP:7681` URL printed by `task infra:up` and accept
+the temporary self-signed certificate warning. The terminal is already on the
+node hosting the K3s control plane.
 
 ## Compare contention
 

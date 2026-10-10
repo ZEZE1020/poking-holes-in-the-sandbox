@@ -2,8 +2,9 @@
 
 ## Connect
 
-Open the `http://EXTERNAL_IP:7681` URL printed by `task infra:up`. The terminal
-logs in as `workshop`; use `sudo` only when a probe requires host access.
+Open the `https://EXTERNAL_IP:7681` URL printed by `task infra:up` and accept
+the temporary self-signed certificate warning. The terminal runs as the
+unprivileged `workshop` user.
 
 ## Run the baseline
 

@@ -2,7 +2,9 @@
 
 ## Before the session
 
-- Confirm the GCP project, quota, billing, and attendee count.
+- Confirm the GCP project, quota, billing, attendee count, and attendee CIDR.
+- Export a restricted firewall range before provisioning:
+  `export TF_VAR_source_ranges='["203.0.113.10/32"]'`.
 - Run `task infra:init`, `task infra:plan`, and `task infra:up`.
 - Open each printed ttyd URL once and confirm that `kubectl get nodes` reports
   a Ready node.
@@ -19,5 +21,5 @@
 ## Safety reminders
 
 - The ttyd firewall rule is intended for temporary workshop environments.
-- Do not use the default `0.0.0.0/0` source range for production systems.
+- Never use `0.0.0.0/0`; OpenTofu rejects it.
 - Destroy the instances and review the GCP project after the session.

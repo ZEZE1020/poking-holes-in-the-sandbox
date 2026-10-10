@@ -2,8 +2,9 @@
 
 ## Connect
 
-Return to the `http://EXTERNAL_IP:7681` browser terminal from `task infra:up`.
-All commands below run on the dedicated node as `workshop`.
+Return to the `https://EXTERNAL_IP:7681` browser terminal from `task infra:up`
+and accept the temporary self-signed certificate warning. All commands below
+run on the dedicated node as the unprivileged `workshop` user.
 
 ## Run the Kata workload
 

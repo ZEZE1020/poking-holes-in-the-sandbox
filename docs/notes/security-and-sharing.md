@@ -17,8 +17,8 @@ infrastructure data are not part of the lesson.
 ## Infrastructure hygiene
 
 - Set `TF_VAR_project_id` through the shell or a local ignored `.env` file.
-- Use `source_ranges` restricted to the attendee network instead of
-  `0.0.0.0/0` outside a temporary workshop.
+- Use `source_ranges` restricted to the attendee network. The configuration
+  rejects `0.0.0.0/0`.
 - Never paste access tokens, cloud credentials, kubeconfigs, or private keys
   into lab manifests, documentation, screenshots, or slide notes.
 - Treat OpenTofu state and plans as sensitive because they can contain resource
