@@ -8,10 +8,11 @@ readonly TTYD_VERSION="${TTYD_VERSION:-1.7.7}"
 readonly TTYD_URL="https://github.com/tsl0922/ttyd/releases/download/${TTYD_VERSION}/ttyd.x86_64"
 readonly TTYD_PATH="/usr/local/bin/ttyd"
 readonly K3S_INSTALL_URL="https://get.k3s.io"
+readonly KATA_MANAGER_URL="https://raw.githubusercontent.com/kata-containers/kata-containers/main/utils/kata-manager.sh"
 
 apt-get update
 apt-get install -y --no-install-recommends ca-certificates curl kmod openssl \
-  linux-modules-extra-"$(uname -r)" kata-containers stress-ng
+  jq linux-modules-extra-"$(uname -r)" stress-ng
 
 modprobe kvm
 modprobe kvm_intel
@@ -23,6 +24,19 @@ install -d -m 0750 -o "$WORKSHOP_USER" -g "$WORKSHOP_USER" "/home/$WORKSHOP_USER
 
 curl --fail --location --retry 5 --output "$TTYD_PATH" "$TTYD_URL"
 chmod 0755 "$TTYD_PATH"
+
+if [ ! -x /usr/local/bin/containerd-shim-kata-v2 ]; then
+  set +e
+  curl --fail --location --retry 5 "$KATA_MANAGER_URL" | bash -s -- -o -t
+  kata_install_status=${PIPESTATUS[1]}
+  set -e
+  if [ "$kata_install_status" -ne 0 ] && [ ! -x /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 ]; then
+    echo "Kata Containers installation failed" >&2
+    exit "$kata_install_status"
+  fi
+  install -m 0755 /opt/kata/runtime-rs/bin/containerd-shim-kata-v2 \
+    /usr/local/bin/containerd-shim-kata-v2
+fi
 
 if ! systemctl is-active --quiet k3s; then
   if ! command -v k3s >/dev/null 2>&1; then
@@ -55,15 +69,16 @@ cp /etc/rancher/k3s/k3s.yaml "/home/$WORKSHOP_USER/.kube/config"
 chown -R "$WORKSHOP_USER:$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube"
 chmod 0600 "/home/$WORKSHOP_USER/.kube/config"
 
-install -d -m 0750 /etc/ttyd
+install -d -m 0750 -o root -g "$WORKSHOP_USER" /etc/ttyd
 if [ ! -s /etc/ttyd/server.key ] || [ ! -s /etc/ttyd/server.crt ]; then
   openssl req -x509 -newkey rsa:2048 -nodes -days 30 \
     -keyout /etc/ttyd/server.key \
     -out /etc/ttyd/server.crt \
     -subj "/CN=workshop-node"
-  chmod 0600 /etc/ttyd/server.key
-  chmod 0644 /etc/ttyd/server.crt
 fi
+chown root:"$WORKSHOP_USER" /etc/ttyd/server.key /etc/ttyd/server.crt
+chmod 0640 /etc/ttyd/server.key
+chmod 0644 /etc/ttyd/server.crt
 
 cat >/etc/systemd/system/ttyd.service <<'EOF'
 [Unit]

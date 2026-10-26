@@ -36,7 +36,7 @@ resource "google_compute_firewall" "workshop" {
 resource "google_compute_instance" "node" {
   count        = local.node_count
   name         = local.node_names[count.index]
-  machine_type = "n2-standard-4"
+  machine_type = var.machine_type
   zone         = var.zone
   tags         = [var.name_prefix]
 
@@ -58,6 +58,6 @@ resource "google_compute_instance" "node" {
     enable_nested_virtualization = true
   }
 
-  min_cpu_platform        = "Intel Cascade Lake"
+  min_cpu_platform        = var.min_cpu_platform
   metadata_startup_script = file("${path.module}/../scripts/setup-node.sh")
 }

@@ -49,6 +49,20 @@ variable "name_prefix" {
   default     = "sandbox"
 }
 
+variable "machine_type" {
+  description = "Machine type for workshop VMs."
+  type        = string
+  default     = "n2-standard-4"
+}
+
+variable "min_cpu_platform" {
+  description = "Minimum CPU platform for workshop VMs."
+  type        = string
+  default     = "Intel Cascade Lake"
+}
+
+
+
 variable "boot_image" {
   description = "Ubuntu image family used for workshop nodes."
   type        = string

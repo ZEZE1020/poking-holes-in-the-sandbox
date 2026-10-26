@@ -1,5 +1,5 @@
 # yaml-language-server: $schema=https://taskfile.dev/schema.json
-version: '3'
+version: "3"
 
 vars:
   TOFU_DIR: provisioning/tofu-gcp
@@ -25,6 +25,11 @@ tasks:
     desc: Destroy the workshop infrastructure
     cmds:
       - tofu -chdir={{.TOFU_DIR}} destroy -auto-approve
+
+  local:setup:
+    desc: Set up a local k3d cluster with Kata Containers
+    cmds:
+      - ./scripts/setup-local-kata.sh
 
   validate:
     desc: Validate all lab manifests with kubectl or offline checks
