@@ -19,7 +19,7 @@ fi
 # Download and extract Kata Containers
 if [ ! -d "${KATA_DEST}" ]; then
     echo "Downloading Kata Containers from ${KATA_URL}..."
-    curl -fsSL -o /tmp/kata-static.tar.xz "${KATA_URL}"
+    curl -L --progress-bar -o /tmp/kata-static.tar.xz "${KATA_URL}"
     echo "Extracting to ${KATA_DEST}..."
     sudo mkdir -p "${KATA_DEST}"
     sudo tar -xf /tmp/kata-static.tar.xz -C /

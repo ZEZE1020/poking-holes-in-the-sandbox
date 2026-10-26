@@ -28,8 +28,25 @@ tasks:
 
   local:setup:
     desc: Set up a local k3d cluster with Kata Containers
+    deps:
+      - install:k3d
     cmds:
       - ./scripts/setup-local-kata.sh
+
+  install:k3d:
+    desc: Install k3d if it is not already installed
+    cmds:
+      - |
+        if ! command -v k3d &> /dev/null; then
+          echo "k3d not found, installing..."
+          curl https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        else
+          echo "k3d is already installed."
+        fi
+    sources:
+      - "null" # This ensures the task always runs its check
+    generates:
+      - "null" # This ensures the task always runs its check
 
   validate:
     desc: Validate all lab manifests with kubectl or offline checks
