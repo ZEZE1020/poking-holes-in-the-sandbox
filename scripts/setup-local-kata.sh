@@ -18,12 +18,17 @@ fi
 
 # Download and extract Kata Containers
 if [ ! -d "${KATA_DEST}" ]; then
+    echo "--- Starting Kata Containers download at $(date) ---"
     echo "Downloading Kata Containers from ${KATA_URL}..."
     curl -L --progress-bar -o /tmp/kata-static.tar.xz "${KATA_URL}"
+    echo "--- Finished Kata Containers download at $(date) ---"
+
+    echo "--- Starting Kata Containers extraction at $(date) ---"
     echo "Extracting to ${KATA_DEST}..."
     sudo mkdir -p "${KATA_DEST}"
     sudo tar -xf /tmp/kata-static.tar.xz -C /
     rm /tmp/kata-static.tar.xz
+    echo "--- Finished Kata Containers extraction at $(date) ---"
 else
     echo "Kata Containers already found in ${KATA_DEST}. Skipping download."
 fi
@@ -34,6 +39,7 @@ sudo ln -sf "${KATA_DEST}/bin/containerd-shim-kata-v2" /usr/local/bin/containerd
 sudo ln -sf "${KATA_DEST}/bin/kata-runtime" /usr/local/bin/kata-runtime
 
 # Create k3d cluster with containerd config template
+echo "--- Starting k3d cluster creation at $(date) ---"
 echo "Creating k3d cluster..."
 cat <<EOF > /tmp/k3s-config.toml.tmpl
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata-qemu]
@@ -45,6 +51,7 @@ EOF
 k3d cluster create local-workshop \
   --k3s-arg "--containerd-config-path=/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl@server:0" \
   --volume /tmp/k3s-config.toml.tmpl:/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
+echo "--- Finished k3d cluster creation at $(date) ---"
 
 # Create RuntimeClass
 echo "Creating RuntimeClass..."
