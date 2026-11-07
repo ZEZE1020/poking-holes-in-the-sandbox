@@ -1,6 +1,36 @@
-# Poking Holes in the Sandbox: A Container Security Workshop
+# Poking Holes in the Sandbox: Container Isolation and Digital Sovereignty
 
-This workshop explores the security differences between standard `runc` containers and `Kata Containers`. By running hands-on labs, you will learn how container runtimes can fundamentally change the security posture of your workloads.
+[![License](https://img.shields.io/github/license/ZEZE1020/poking-holes-in-the-sandbox)](LICENSE)
+[![Workshop labs](https://img.shields.io/badge/workshop-labs-blue)](#running-the-labs)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-k3s-326ce5?logo=kubernetes&logoColor=white)](#ways-to-run-the-workshop)
+[![Kata Containers](https://img.shields.io/badge/runtime-kata%20containers-6f42c1)](#the-why-runc-vs-kata-containers)
+
+Modern digital sovereignty is not only about where workloads are hosted. It is
+also about who controls the infrastructure, how much trust is placed in the
+platform, and whether sensitive workloads can be separated from the host and
+from one another. Container runtime choice is one practical part of that
+conversation.
+
+This workshop is a hands-on exploration of that boundary. You will deploy the
+same Kubernetes workloads with the standard `runc` runtime and with Kata
+Containers, then inspect what changes. The goal is not to claim that one
+runtime solves sovereignty on its own, but to show how stronger workload
+isolation can reduce dependence on a shared host kernel and make security
+assumptions visible and testable.
+
+## What you will learn
+
+By the end of the workshop, you will be able to:
+
+- Explain the shared-kernel isolation model used by ordinary containers.
+- Describe how Kata adds a lightweight virtual-machine boundary and guest
+  kernel.
+- Verify isolation differences from inside a workload rather than relying on
+  labels or configuration alone.
+- Measure the startup and resource trade-offs of stronger isolation.
+- Identify which sovereignty and security questions remain outside the
+  container runtime, including control of the host, cloud account, keys, data,
+  and operational policies.
 
 ## The "Why": `runc` vs. Kata Containers
 
@@ -10,7 +40,39 @@ This workshop explores the security differences between standard `runc` containe
 ### `Kata Containers`: Security Through Virtualization
 `Kata Containers` adds a layer of hardware-virtualization to containerization. Each Kata Container (or group of containers) runs within its own lightweight virtual machine, with its own dedicated kernel. This provides much stronger isolation from the host and other containers, significantly reducing the attack surface. The trade-off is a small performance overhead compared to `runc`.
 
-This workshop will allow you to experience these differences firsthand and understand when to choose one over the other.
+The labs make these differences observable: `runc` exposes the host kernel
+identity, while Kata reports a guest kernel. You will then compare the
+performance and operational trade-offs before deciding where each runtime is
+appropriate.
+
+## Workshop flow
+
+The workshop follows a simple progression:
+
+1. Establish the baseline with a standard `runc` container.
+2. Repeat the inspection with a Kata workload.
+3. Compare startup time, CPU, memory, and host-level VMM overhead.
+4. Relate the technical findings to trust boundaries, platform control, and
+   digital sovereignty.
+
+You can use a pre-issued browser environment, provision a temporary GCP or
+Azure environment, or run the workshop locally on native Ubuntu Linux.
+
+## Reproduction options
+
+Choose the option that matches the goal of your session:
+
+| Option | Best for | Requirements | Isolation and cost |
+| --- | --- | --- | --- |
+| Pre-issued browser terminal | Attendees and short demonstrations | Browser and workshop URL | Fastest start; shared environment, no local install |
+| Google Cloud | Repeatable single-user or facilitator deployment | GCP project with billing, `gcloud`, OpenTofu, and Task | VM-backed Kata; billed while running |
+| Azure | Multi-terminal workshops | Azure subscription, `az`, OpenTofu, Task, and SSH key | Separate terminal users and namespaces; shared VM resources |
+| Native Ubuntu | Local development and offline work | Ubuntu 22.04/24.04, Docker, KVM, `kubectl`, `k3d`, and Task | Local control; hardware virtualization required |
+| WSL2/Docker Desktop | Only if Kata guest boot is known to work | Same tools plus nested virtualization support | May start k3d but fail Kata guest startup; use cloud or native Ubuntu if it does |
+
+All routes use the same Kubernetes manifests in `lab1-runc/`, `lab2-kata/`,
+and `lab3-metrics/`. Cloud routes provide a browser terminal; local setup
+provides a local Kubernetes context.
 
 ## Prerequisites
 
@@ -20,7 +82,38 @@ Before you begin, you will need to install the following tools, depending on the
 *   [**Go Task**](https://taskfile.dev/installation/): A task runner used to automate workshop commands.
 *   [**kubectl**](https://kubernetes.io/docs/tasks/tools/install-kubectl/): The Kubernetes command-line tool.
 *   [**gcloud CLI**](https://cloud.google.com/sdk/docs/install): The command-line interface for Google Cloud.
+*   [**Azure CLI**](https://learn.microsoft.com/cli/azure/install-azure-cli): Required for the Azure setup.
 *   [**k3d**](https://k3d.io/): For running a local Kubernetes cluster.
+
+### Common requirements
+
+For every self-managed route:
+
+- Git and network access to download images and Kata components.
+- A terminal with permission to run Docker and `kubectl`.
+- Enough CPU, memory, and disk for a K3s node, Kata guests, and the lab images.
+- A cleanup plan: cloud resources are billable, and local clusters consume disk
+  and CPU until removed.
+
+### Cloud requirements
+
+For GCP or Azure:
+
+- An authenticated cloud account with permission to create compute,
+  networking, disk, and public IP resources.
+- An explicitly restricted public IPv4 CIDR for SSH and browser-terminal
+  access. The Taskfile detects the current address, but
+  `WORKSHOP_SOURCE_CIDR` can override it.
+- Nested virtualization support on the selected VM type.
+
+### Native Ubuntu requirements
+
+For the local Kata path:
+
+- Ubuntu 22.04 or 24.04 on physical or fully virtualized hardware.
+- Intel VT-x or AMD-V enabled in firmware.
+- Docker running and `/dev/kvm` accessible to the current user.
+- `kubectl`, `k3d`, and Task installed.
 
 ## Ways to Run the Workshop
 
@@ -55,7 +148,7 @@ This option is for those who want to run the workshop in their own Google Cloud 
     ```bash
     export TF_VAR_project_id=YOUR_PROJECT_ID
     export TF_VAR_attendee_count=1
-    export TF_VAR_attendees_per_node=1
+    export TF_VAR_attendees_per_node=2
     # Task automatically detects your current public IPv4 address.
     # To override it, set WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32".
 
