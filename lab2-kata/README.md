@@ -2,9 +2,9 @@
 
 ## Connect
 
-Return to the `https://EXTERNAL_IP:7681` browser terminal from `task infra:up`
-and accept the temporary self-signed certificate warning. All commands below
-run on the dedicated node as the unprivileged `workshop` user.
+Use the browser terminal from `task infra:up` and accept the temporary
+self-signed certificate warning. All commands below run as the unprivileged
+`workshop` user.
 
 ## Run the Kata workload
 
@@ -15,11 +15,23 @@ kubectl get pod kata-baseline -o wide
 kubectl exec -it kata-baseline -- sh
 ```
 
-Repeat Lab 1's probes (`uname -r`, `/proc/version`, `/dev`, and
-`/sys/module`). Compare the guest kernel identity and device/module view with
-the `runc` pod. Kata places the container process in a lightweight VM, adding a
-hypervisor boundary and a dedicated guest kernel while retaining the Kubernetes
-pod interface.
+Inside the container, run these probes:
+
+```sh
+uname -r
+cat /proc/version
+ls -la /dev
+ls /sys/module | head
+```
+
+Expected result: `uname -r` reports a Kata guest kernel, such as `6.18.56`,
+instead of the node's `6.8.0-1073-gcp` host kernel. The device and module
+views are also different because the workload runs behind the Kata VM
+boundary. This lets you compare the outputs without returning to Lab 1.
+Kata places the container process in a lightweight VM while retaining the
+Kubernetes pod interface.
+
+Exit with `exit`, then clean up using this directory's manifest:
 
 ```bash
 kubectl delete -f 01-kata-pod.yaml

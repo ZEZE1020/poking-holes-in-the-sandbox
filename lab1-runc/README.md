@@ -23,9 +23,12 @@ ls -la /dev
 ls /sys/module | head
 ```
 
-The pod has no special privileges, but these probes show that ordinary
-containers use the host kernel and expose the host's device and module view
-according to the container runtime policy. Exit with `exit`, then clean up:
+Expected result: `uname -r` matches the node's host kernel. In this workshop,
+that is a `6.8.0-1073-gcp` kernel. The device and module listings are also
+provided by the shared host-kernel environment, subject to container runtime
+policy.
+
+Exit with `exit`, then clean up:
 
 ```bash
 kubectl delete -f 01-baseline-pod.yaml

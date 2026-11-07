@@ -56,14 +56,37 @@ This option is for those who want to run the workshop in their own Google Cloud 
     export TF_VAR_project_id=YOUR_PROJECT_ID
     export TF_VAR_attendee_count=1
     export TF_VAR_attendees_per_node=1
-    export TF_VAR_source_ranges='["YOUR_PUBLIC_IP/32"]' # Replace with your IP
-    
+    # Task automatically detects your current public IPv4 address.
+    # To override it, set WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32".
+
     task infra:init
     task infra:plan
     task infra:up
     ```
 3.  **Access the Workshop:**
     After `task infra:up` completes, it will output one or more URLs. Open one of these URLs in your browser.
+    The terminal includes a `workshop/` directory containing the README and all three lab directories.
+    If you update the labs while the VM is running, refresh that directory with:
+    ```bash
+    task workshop:sync:gcp
+    ```
+
+### Option 2b: Deploy on Azure
+
+After authenticating with `az login`, set the subscription and SSH public key:
+
+```bash
+az account set --subscription YOUR_SUBSCRIPTION_ID
+export TF_VAR_admin_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
+
+task infra:azure:init
+task infra:azure:plan
+task infra:azure:up
+```
+
+The Azure tasks use the same automatically detected public IPv4 CIDR. Override it
+with `WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32"` when necessary. Destroy the
+resources with `task infra:azure:down`.
 
 ### Option 3: Full Local Experience with Kata Containers
 This option provides the full workshop experience on your local machine.
@@ -71,6 +94,10 @@ This option provides the full workshop experience on your local machine.
 **Requirements:**
 *   A machine that supports hardware virtualization (Intel VT-x or AMD-V).
 *   `k3d` and `task` installed.
+
+Native Linux is recommended for the local Kata path. Docker Desktop, WSL2,
+and nested virtual machines may start the k3d cluster successfully but still
+fail to boot the Kata guest kernel.
 
 **Instructions:**
 1.  **Create a Local Cluster with Kata Containers:**
@@ -92,6 +119,31 @@ The labs are located in the following directories:
 *   `lab3-metrics/`
 
 Each lab directory contains a `README.md` with specific instructions.
+Run them in order from the workshop directory:
+
+```bash
+cd ~/workshop/lab1-runc
+# Follow this README, then clean up the runc pod.
+
+cd ../lab2-kata
+# Follow this README, then clean up the Kata pod.
+
+cd ../lab3-metrics
+# Follow this README, then clean up both stress pods.
+```
+
+Each lab is self-contained; Lab 2 includes its own kernel and device probes
+so you do not need to copy commands from Lab 1.
+
+Each terminal is assigned its own Kubernetes namespace and restricted
+kubeconfig. The lab commands can therefore use their normal `kubectl` form
+while remaining isolated from other participants. CPU, memory, and pod-count
+quotas prevent one participant from consuming the entire cluster.
+
+Participants still share the VM's physical CPU, memory, and Kata
+virtualization capacity. Namespace isolation prevents accidental interference
+between labs; it is not a replacement for provisioning a separate VM when
+strong hardware-level separation is required.
 
 ## Cleanup
 
