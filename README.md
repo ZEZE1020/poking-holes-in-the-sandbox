@@ -95,9 +95,21 @@ This option provides the full workshop experience on your local machine.
 *   A machine that supports hardware virtualization (Intel VT-x or AMD-V).
 *   `k3d` and `task` installed.
 
-Native Linux is recommended for the local Kata path. Docker Desktop, WSL2,
-and nested virtual machines may start the k3d cluster successfully but still
-fail to boot the Kata guest kernel.
+Native Ubuntu Linux is recommended for the local Kata path. Ubuntu 22.04 or
+24.04 with Docker, `kubectl`, `k3d`, and `task` is the supported local
+environment. Hardware virtualization (Intel VT-x or AMD-V) must be enabled,
+and `/dev/kvm` must be available to your user:
+
+```bash
+ls -l /dev/kvm
+sudo usermod -aG kvm "$USER"
+```
+
+Log out and back in after adding yourself to the `kvm` group. Docker Desktop,
+WSL2, and nested virtual machines may start the k3d cluster successfully but
+still fail to boot the Kata guest kernel or connect to its guest agent because
+they add another virtualization layer. If local Kata setup fails in WSL2,
+repeat it on a native Ubuntu installation or use the GCP/Azure environment.
 
 **Instructions:**
 1.  **Create a Local Cluster with Kata Containers:**
@@ -106,7 +118,7 @@ fail to boot the Kata guest kernel.
     task local:setup
     ```
 2.  **Verify the Setup:**
-    Check that the `kata-qemu` runtime class is available:
+    Check that the `kata` runtime class is available:
     ```bash
     kubectl get runtimeclass
     ```
