@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/github/license/ZEZE1020/poking-holes-in-the-sandbox)](LICENSE)
 [![Workshop labs](https://img.shields.io/badge/workshop-labs-blue)](#running-the-labs)
-[![Kubernetes](https://img.shields.io/badge/kubernetes-k3s-326ce5?logo=kubernetes&logoColor=white)](#ways-to-run-the-workshop)
+[![Kubernetes](https://img.shields.io/badge/kubernetes-k3s-326ce5?logo=kubernetes&logoColor=white)](#choose-an-environment)
 [![Kata Containers](https://img.shields.io/badge/runtime-kata%20containers-6f42c1)](#the-why-runc-vs-kata-containers)
 
 Modern digital sovereignty is not only about where workloads are hosted. It is
@@ -74,147 +74,73 @@ All routes use the same Kubernetes manifests in `lab1-runc/`, `lab2-kata/`,
 and `lab3-metrics/`. Cloud routes provide a browser terminal; local setup
 provides a local Kubernetes context.
 
-## Prerequisites
+## Choose an environment
 
-Before you begin, you will need to install the following tools, depending on the setup option you choose:
+| Path | Use when | Requirements |
+| --- | --- | --- |
+| Pre-issued terminal | You are attending a hosted session | Browser and workshop URL |
+| GCP or Azure | You need a repeatable cloud environment | Cloud account, billing/subscription, OpenTofu, Task, and CLI |
+| Native Ubuntu | You want to run Kata locally | Ubuntu 22.04/24.04, Docker, `kubectl`, `k3d`, Task, and KVM |
 
-*   [**OpenTofu**](https://opentofu.org/docs/intro/install/): For provisioning cloud infrastructure.
-*   [**Go Task**](https://taskfile.dev/installation/): A task runner used to automate workshop commands.
-*   [**kubectl**](https://kubernetes.io/docs/tasks/tools/install-kubectl/): The Kubernetes command-line tool.
-*   [**gcloud CLI**](https://cloud.google.com/sdk/docs/install): The command-line interface for Google Cloud.
-*   [**Azure CLI**](https://learn.microsoft.com/cli/azure/install-azure-cli): Required for the Azure setup.
-*   [**k3d**](https://k3d.io/): For running a local Kubernetes cluster.
+All paths use the same manifests. Cloud environments provide a browser
+terminal; local setup uses your local Kubernetes context. Cloud resources are
+billable until destroyed.
 
-### Common requirements
+### Hosted environment
 
-For every self-managed route:
+Open the provided browser-terminal URL and accept the temporary certificate
+warning. The lab files are in `~/workshop`.
 
-- Git and network access to download images and Kata components.
-- A terminal with permission to run Docker and `kubectl`.
-- Enough CPU, memory, and disk for a K3s node, Kata guests, and the lab images.
-- A cleanup plan: cloud resources are billable, and local clusters consume disk
-  and CPU until removed.
+### Google Cloud
 
-### Cloud requirements
-
-For GCP or Azure:
-
-- An authenticated cloud account with permission to create compute,
-  networking, disk, and public IP resources.
-- An explicitly restricted public IPv4 CIDR for SSH and browser-terminal
-  access. The Taskfile detects the current address, but
-  `WORKSHOP_SOURCE_CIDR` can override it.
-- Nested virtualization support on the selected VM type.
-
-### Native Ubuntu requirements
-
-For the local Kata path:
-
-- Ubuntu 22.04 or 24.04 on physical or fully virtualized hardware.
-- Intel VT-x or AMD-V enabled in firmware.
-- Docker running and `/dev/kvm` accessible to the current user.
-- `kubectl`, `k3d`, and Task installed.
-
-## Ways to Run the Workshop
-
-Choose one of the following setup options to get started.
-
-### Option 1: Use a Pre-issued Workshop Environment (Recommended for Attendees)
-If you are an attendee of a workshop session, you will likely be provided with a pre-configured environment.
-
-**Requirements:**
-*   A web browser.
-
-**Instructions:**
-1.  You will receive a URL to a browser-based terminal.
-2.  Open the URL in your web browser. You may see a warning about a self-signed certificate, which you can safely accept.
-3.  The terminal provides access to a K3s cluster where you will run the labs.
-
-### Option 2: Deploy Your Own Infrastructure on Google Cloud
-This option is for those who want to run the workshop in their own Google Cloud project.
-
-**Requirements:**
-*   A Google Cloud project with billing enabled.
-*   `gcloud CLI`, `tofu`, and `task` installed.
-
-**Instructions:**
-1.  **Authenticate to Google Cloud:**
-    ```bash
-    gcloud auth application-default login
-    gcloud config set project YOUR_PROJECT_ID
-    ```
-2.  **Configure and Provision:**
-    Set the following environment variables, then run the deployment tasks.
-    ```bash
-    export TF_VAR_project_id=YOUR_PROJECT_ID
-    export TF_VAR_attendee_count=1
-    export TF_VAR_attendees_per_node=2
-    # Task automatically detects your current public IPv4 address.
-    # To override it, set WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32".
-
-    task infra:init
-    task infra:plan
-    task infra:up
-    ```
-3.  **Access the Workshop:**
-    After `task infra:up` completes, it will output one or more URLs. Open one of these URLs in your browser.
-    The terminal includes a `workshop/` directory containing the README and all three lab directories.
-    If you update the labs while the VM is running, refresh that directory with:
-    ```bash
-    task workshop:sync:gcp
-    ```
-
-### Option 2b: Deploy on Azure
-
-After authenticating with `az login`, set the subscription and SSH public key:
+Requirements: a project with billing, `gcloud`, OpenTofu, and Task.
 
 ```bash
+gcloud auth application-default login
+gcloud config set project YOUR_PROJECT_ID
+export TF_VAR_project_id=YOUR_PROJECT_ID
+export TF_VAR_attendee_count=1
+export TF_VAR_attendees_per_node=2
+task infra:init
+task infra:plan
+task infra:up
+```
+
+The Taskfile detects your public IPv4 CIDR. Override it with
+`WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32"` when needed. The terminal includes
+the labs under `~/workshop`. Use `task workshop:sync:gcp` to refresh them.
+
+### Azure
+
+Requirements: an Azure subscription, `az`, OpenTofu, Task, and an SSH key.
+
+```bash
+az login
 az account set --subscription YOUR_SUBSCRIPTION_ID
 export TF_VAR_admin_ssh_public_key="$(cat ~/.ssh/id_ed25519.pub)"
-
 task infra:azure:init
 task infra:azure:plan
 task infra:azure:up
 ```
 
-The Azure tasks use the same automatically detected public IPv4 CIDR. Override it
-with `WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32"` when necessary. Destroy the
-resources with `task infra:azure:down`.
+Override the detected firewall range with `WORKSHOP_SOURCE_CIDR` if needed.
 
-### Option 3: Full Local Experience with Kata Containers
-This option provides the full workshop experience on your local machine.
+### Native Ubuntu
 
-**Requirements:**
-*   A machine that supports hardware virtualization (Intel VT-x or AMD-V).
-*   `k3d` and `task` installed.
-
-Native Ubuntu Linux is recommended for the local Kata path. Ubuntu 22.04 or
-24.04 with Docker, `kubectl`, `k3d`, and `task` is the supported local
-environment. Hardware virtualization (Intel VT-x or AMD-V) must be enabled,
-and `/dev/kvm` must be available to your user:
+Requirements: Ubuntu 22.04/24.04, Docker, `kubectl`, `k3d`, Task, and
+hardware virtualization with `/dev/kvm` available.
 
 ```bash
 ls -l /dev/kvm
 sudo usermod -aG kvm "$USER"
+# Log out and back in after changing the group.
+task local:setup
+kubectl get runtimeclass
 ```
 
-Log out and back in after adding yourself to the `kvm` group. Docker Desktop,
-WSL2, and nested virtual machines may start the k3d cluster successfully but
-still fail to boot the Kata guest kernel or connect to its guest agent because
-they add another virtualization layer. If local Kata setup fails in WSL2,
-repeat it on a native Ubuntu installation or use the GCP/Azure environment.
-
-**Instructions:**
-1.  **Create a Local Cluster with Kata Containers:**
-    The `local:setup` task automates the download and configuration of Kata Containers with k3d.
-    ```bash
-    task local:setup
-    ```
-2.  **Verify the Setup:**
-    Check that the `kata` runtime class is available:
-    ```bash
-    kubectl get runtimeclass
-    ```
+WSL2, Docker Desktop, and nested VMs may start k3d but fail to boot the Kata
+guest or connect to its agent. Use native Ubuntu or a cloud environment if
+that happens.
 
 ## Running the Labs
 
@@ -252,9 +178,12 @@ strong hardware-level separation is required.
 
 ## Cleanup
 
-If you deployed your own infrastructure (Option 2), you can destroy all the created resources by running:
+Destroy cloud resources when you finish:
+
 ```bash
 task infra:down
+# Azure deployments:
+task infra:azure:down
 ```
 
 ## Helper Materials
