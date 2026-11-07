@@ -50,7 +50,8 @@ fi
 readonly CONTAINERD_TEMPLATE="/var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl"
 install -d "$(dirname "$CONTAINERD_TEMPLATE")"
 if ! grep --quiet 'io.containerd.kata.v2' "$CONTAINERD_TEMPLATE" 2>/dev/null; then
-  cat >>"$CONTAINERD_TEMPLATE" <<'EOF'
+  cat >"$CONTAINERD_TEMPLATE" <<'EOF'
+{{ template "base" . }}
 
 [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.kata]
   runtime_type = "io.containerd.kata.v2"
@@ -62,11 +63,73 @@ chmod 0600 /etc/rancher/k3s/k3s.yaml
 chown root:root /etc/rancher/k3s/k3s.yaml
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+until kubectl get nodes --no-headers 2>/dev/null | grep --quiet .; do
+  sleep 2
+done
 kubectl wait --for=condition=Ready node --all --timeout=180s
 
+kubectl create namespace "$WORKSHOP_USER" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create serviceaccount "$WORKSHOP_USER" --namespace "$WORKSHOP_USER" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workshop-user
+  namespace: $WORKSHOP_USER
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec", "pods/log", "events", "resourcequotas"]
+    verbs: ["create", "delete", "get", "list", "patch", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+EOF
+kubectl create rolebinding workshop-user \
+  --namespace "$WORKSHOP_USER" \
+  --role workshop-user \
+  --serviceaccount "$WORKSHOP_USER:$WORKSHOP_USER" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: workshop-quota
+  namespace: $WORKSHOP_USER
+spec:
+  hard:
+    pods: "10"
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+EOF
+
+readonly KUBECONFIG_SERVER="$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}')"
+readonly KUBECONFIG_CA="$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
+readonly KUBECONFIG_TOKEN="$(kubectl create token "$WORKSHOP_USER" --namespace "$WORKSHOP_USER")"
 install -d -m 0750 -o "$WORKSHOP_USER" -g "$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube"
-cp /etc/rancher/k3s/k3s.yaml "/home/$WORKSHOP_USER/.kube/config"
-chown -R "$WORKSHOP_USER:$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube"
+cat >"/home/$WORKSHOP_USER/.kube/config" <<EOF
+apiVersion: v1
+kind: Config
+clusters:
+- name: workshop
+  cluster:
+    server: $KUBECONFIG_SERVER
+    certificate-authority-data: $KUBECONFIG_CA
+contexts:
+- name: $WORKSHOP_USER
+  context:
+    cluster: workshop
+    namespace: $WORKSHOP_USER
+    user: $WORKSHOP_USER
+current-context: $WORKSHOP_USER
+users:
+- name: $WORKSHOP_USER
+  user:
+    token: $KUBECONFIG_TOKEN
+EOF
+chown "$WORKSHOP_USER:$WORKSHOP_USER" "/home/$WORKSHOP_USER/.kube/config"
 chmod 0600 "/home/$WORKSHOP_USER/.kube/config"
 
 install -d -m 0750 -o root -g "$WORKSHOP_USER" /etc/ttyd
@@ -91,6 +154,7 @@ Type=simple
 User=workshop
 WorkingDirectory=/home/workshop
 Environment=TERM=xterm-256color
+Environment=KUBECONFIG=/home/workshop/.kube/config
 ExecStart=/usr/local/bin/ttyd --ssl --ssl-cert /etc/ttyd/server.crt --ssl-key /etc/ttyd/server.key -W -p 7681 /bin/bash
 Restart=on-failure
 RestartSec=2
@@ -101,6 +165,8 @@ EOF
 
 systemctl daemon-reload
 systemctl enable --now ttyd.service
+
+__WORKSHOP_MATERIALS_BOOTSTRAP__
 
 kubectl apply -f - <<'EOF'
 apiVersion: node.k8s.io/v1

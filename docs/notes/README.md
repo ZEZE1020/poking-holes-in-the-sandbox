@@ -4,8 +4,8 @@
 
 - Confirm the GCP project, quota, billing, attendee count, attendees per node,
   and attendee CIDR.
-- Export a restricted firewall range before provisioning:
-  `export TF_VAR_source_ranges='["203.0.113.10/32"]'`.
+- The provisioning tasks automatically detect the current public IPv4 CIDR.
+  Set `WORKSHOP_SOURCE_CIDR="YOUR_PUBLIC_IP/32"` to override it when needed.
 - Run `task infra:init`, `task infra:plan`, and `task infra:up`.
 - Open each printed ttyd URL once and confirm that `kubectl get nodes` reports
   a Ready node.

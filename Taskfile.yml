@@ -2,29 +2,103 @@
 version: "3"
 
 vars:
-  TOFU_DIR: provisioning/tofu-gcp
+  GCP_TOFU_DIR: provisioning/tofu-gcp
+  AZURE_TOFU_DIR: provisioning/tofu-azure
+
+env:
+  WORKSHOP_SOURCE_CIDR:
+    sh: |
+      if [ -n "${WORKSHOP_SOURCE_CIDR:-}" ]; then
+        printf '%s\n' "$WORKSHOP_SOURCE_CIDR"
+      else
+        ./scripts/public-ip-cidr.sh
+      fi
 
 tasks:
   infra:init:
-    desc: Initialize the OpenTofu working directory
+    desc: Initialize the GCP OpenTofu working directory
     cmds:
-      - tofu -chdir={{.TOFU_DIR}} init
+      - tofu -chdir={{.GCP_TOFU_DIR}} init
 
   infra:plan:
-    desc: Preview the GCP infrastructure changes
+    desc: Preview the GCP infrastructure changes using the current public IP
     cmds:
-      - tofu -chdir={{.TOFU_DIR}} plan
+      - |
+        export TF_VAR_source_ranges="[\"${WORKSHOP_SOURCE_CIDR}\"]"
+        tofu -chdir={{.GCP_TOFU_DIR}} plan
+    preconditions:
+      - sh: test -n "$WORKSHOP_SOURCE_CIDR"
+        msg: "A public IPv4 CIDR could not be determined. Set WORKSHOP_SOURCE_CIDR manually."
 
   infra:up:
-    desc: Provision attendee nodes and print terminal URLs
+    desc: Provision GCP attendee nodes using the current public IP
     cmds:
-      - tofu -chdir={{.TOFU_DIR}} apply -auto-approve
-      - tofu -chdir={{.TOFU_DIR}} output terminal_urls
+      - |
+        export TF_VAR_source_ranges="[\"${WORKSHOP_SOURCE_CIDR}\"]"
+        tofu -chdir={{.GCP_TOFU_DIR}} apply -auto-approve
+        tofu -chdir={{.GCP_TOFU_DIR}} output terminal_urls
+    preconditions:
+      - sh: test -n "$WORKSHOP_SOURCE_CIDR"
+        msg: "A public IPv4 CIDR could not be determined. Set WORKSHOP_SOURCE_CIDR manually."
 
   infra:down:
-    desc: Destroy the workshop infrastructure
+    desc: Destroy the GCP workshop infrastructure
     cmds:
-      - tofu -chdir={{.TOFU_DIR}} destroy -auto-approve
+      - tofu -chdir={{.GCP_TOFU_DIR}} destroy -auto-approve
+
+  workshop:sync:gcp:
+    desc: Copy the current labs into an existing GCP browser terminal
+    vars:
+      GCP_NODE_NAME: '{{default "sandbox-01" .GCP_NODE_NAME}}'
+      GCP_ZONE: '{{default "us-central1-a" .GCP_ZONE}}'
+    cmds:
+      - |
+        set -eu
+        archive="$(mktemp)"
+        trap 'rm -f "$archive"' EXIT
+        tar -czf "$archive" README.md lab1-runc lab2-kata lab3-metrics
+        gcloud compute scp "$archive" "{{.GCP_NODE_NAME}}:/tmp/workshop-materials.tgz" \
+          --project="${TF_VAR_project_id:?Set TF_VAR_project_id}" \
+          --zone="{{.GCP_ZONE}}"
+        gcloud compute ssh "{{.GCP_NODE_NAME}}" \
+          --project="${TF_VAR_project_id}" \
+          --zone="{{.GCP_ZONE}}" \
+          --command='set -eu
+            sudo install -d -m 0755 /home/workshop/workshop
+            sudo tar -xzf /tmp/workshop-materials.tgz -C /home/workshop/workshop
+            sudo chown -R workshop:workshop /home/workshop/workshop
+            rm -f /tmp/workshop-materials.tgz'
+
+  infra:azure:init:
+    desc: Initialize the Azure OpenTofu working directory
+    cmds:
+      - tofu -chdir={{.AZURE_TOFU_DIR}} init
+
+  infra:azure:plan:
+    desc: Preview the Azure infrastructure changes using the current public IP
+    cmds:
+      - |
+        export TF_VAR_allowed_source_cidrs="[\"${WORKSHOP_SOURCE_CIDR}\"]"
+        tofu -chdir={{.AZURE_TOFU_DIR}} plan
+    preconditions:
+      - sh: test -n "$WORKSHOP_SOURCE_CIDR"
+        msg: "A public IPv4 CIDR could not be determined. Set WORKSHOP_SOURCE_CIDR manually."
+
+  infra:azure:up:
+    desc: Provision the Azure workshop host using the current public IP
+    cmds:
+      - |
+        export TF_VAR_allowed_source_cidrs="[\"${WORKSHOP_SOURCE_CIDR}\"]"
+        tofu -chdir={{.AZURE_TOFU_DIR}} apply -auto-approve
+        tofu -chdir={{.AZURE_TOFU_DIR}} output terminal_urls
+    preconditions:
+      - sh: test -n "$WORKSHOP_SOURCE_CIDR"
+        msg: "A public IPv4 CIDR could not be determined. Set WORKSHOP_SOURCE_CIDR manually."
+
+  infra:azure:down:
+    desc: Destroy the Azure workshop infrastructure
+    cmds:
+      - tofu -chdir={{.AZURE_TOFU_DIR}} destroy -auto-approve
 
   local:setup:
     desc: Set up a local k3d cluster with Kata Containers
@@ -32,6 +106,12 @@ tasks:
       - install:k3d
     cmds:
       - ./scripts/setup-local-kata.sh
+
+  local:clean:
+    desc: Clean up the local k3d cluster and temporary files
+    cmds:
+      - k3d cluster delete local-workshop
+      - rm -f /tmp/k3s-config.toml.tmpl
 
   install:k3d:
     desc: Install k3d if it is not already installed

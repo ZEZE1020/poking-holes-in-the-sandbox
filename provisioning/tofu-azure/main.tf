@@ -18,6 +18,27 @@ locals {
   terminal_users = [
     for index in range(1, 21) : format("participant%02d", index)
   ]
+  workshop_materials = [
+    "README.md",
+    "lab1-runc/README.md",
+    "lab1-runc/01-baseline-pod.yaml",
+    "lab2-kata/README.md",
+    "lab2-kata/01-kata-pod.yaml",
+    "lab3-metrics/README.md",
+    "lab3-metrics/stress-runc.yaml",
+    "lab3-metrics/stress-kata.yaml",
+  ]
+  workshop_materials_bootstrap = join("\n", concat(
+    ["install -d -m 0755 /opt/workshop"],
+    [for relative_path in local.workshop_materials :
+      format(
+        "printf '%%s' '%s' | base64 --decode > '/opt/workshop/%s'",
+        base64encode(file("${path.module}/../../${relative_path}")),
+        relative_path,
+      )
+    ],
+    ["chmod -R a+rX /opt/workshop"],
+  ))
 }
 
 resource "azurerm_resource_group" "workshop" {
@@ -129,8 +150,9 @@ resource "azurerm_linux_virtual_machine" "workshop" {
   }
 
   custom_data = base64encode(templatefile("${path.module}/cloud-init.sh", {
-    terminal_ports = local.terminal_ports
-    terminal_users = local.terminal_users
-    ttyd_version   = var.ttyd_version
+    terminal_ports               = local.terminal_ports
+    terminal_users               = local.terminal_users
+    ttyd_version                 = var.ttyd_version
+    workshop_materials_bootstrap = local.workshop_materials_bootstrap
   }))
 }

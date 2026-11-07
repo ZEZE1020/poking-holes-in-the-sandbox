@@ -52,6 +52,74 @@ fi
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 kubectl wait --for=condition=Ready node --all --timeout=180s
+%{ for user in terminal_users ~}
+namespace="$${user}"
+if ! id --user "$${user}" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash "$${user}"
+fi
+kubectl create namespace "$${namespace}" --dry-run=client -o yaml | kubectl apply -f -
+kubectl create serviceaccount "$${user}" --namespace "$${namespace}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f - <<EOF
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: workshop-user
+  namespace: $${namespace}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/exec", "pods/log", "events", "resourcequotas"]
+    verbs: ["create", "delete", "get", "list", "patch", "watch"]
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+EOF
+kubectl create rolebinding workshop-user \
+  --namespace "$${namespace}" \
+  --role workshop-user \
+  --serviceaccount "$${namespace}:$${user}" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: workshop-quota
+  namespace: $${namespace}
+spec:
+  hard:
+    pods: "10"
+    requests.cpu: "2"
+    requests.memory: 2Gi
+    limits.cpu: "2"
+    limits.memory: 2Gi
+EOF
+install -d -m 0700 -o "$user" -g "$user" "/home/$user/.kube"
+server="$$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.server}')"
+ca="$$(kubectl config view --raw -o jsonpath='{.clusters[0].cluster.certificate-authority-data}')"
+token="$$(kubectl create token "$${user}" --namespace "$${namespace}")"
+cat >"/home/$user/.kube/config" <<CONFIG
+apiVersion: v1
+kind: Config
+clusters:
+- name: workshop
+  cluster:
+    server: $${server}
+    certificate-authority-data: $${ca}
+contexts:
+- name: $${user}
+  context:
+    cluster: workshop
+    namespace: $${namespace}
+    user: $${user}
+current-context: $${user}
+users:
+- name: $${user}
+  user:
+    token: $${token}
+CONFIG
+chown "$user:$user" "/home/$user/.kube/config"
+chmod 0600 "/home/$user/.kube/config"
+%{ endfor ~}
 kubectl apply -f - <<'RUNTIMECLASS'
 apiVersion: node.k8s.io/v1
 kind: RuntimeClass
@@ -85,6 +153,7 @@ Type=simple
 User=$${user}
 WorkingDirectory=/home/$${user}
 Environment=TERM=xterm-256color
+Environment=KUBECONFIG=/home/$${user}/.kube/config
 ExecStart=/usr/local/bin/ttyd --ssl --ssl-cert /etc/ttyd/server.crt --ssl-key /etc/ttyd/server.key --writable -p ${port} /bin/bash --login
 Restart=on-failure
 RestartSec=2
@@ -92,6 +161,12 @@ RestartSec=2
 [Install]
 WantedBy=multi-user.target
 SERVICE
+%{ endfor ~}
+
+${workshop_materials_bootstrap}
+%{ for user in terminal_users ~}
+rm -rf "/home/${user}/workshop"
+ln -s /opt/workshop "/home/${user}/workshop"
 %{ endfor ~}
 
 systemctl daemon-reload

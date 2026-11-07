@@ -18,6 +18,27 @@ provider "google" {
 locals {
   node_count = ceil(var.attendee_count / var.attendees_per_node)
   node_names = [for index in range(local.node_count) : format("%s-%02d", var.name_prefix, index + 1)]
+  workshop_materials = [
+    "README.md",
+    "lab1-runc/README.md",
+    "lab1-runc/01-baseline-pod.yaml",
+    "lab2-kata/README.md",
+    "lab2-kata/01-kata-pod.yaml",
+    "lab3-metrics/README.md",
+    "lab3-metrics/stress-runc.yaml",
+    "lab3-metrics/stress-kata.yaml",
+  ]
+  workshop_materials_bootstrap = join("\n", concat(
+    ["install -d -m 0755 /home/workshop/workshop"],
+    [for relative_path in local.workshop_materials :
+      format(
+        "printf '%%s' '%s' | base64 --decode > '/home/workshop/workshop/%s'",
+        base64encode(file("${path.module}/../../${relative_path}")),
+        relative_path,
+      )
+    ],
+    ["chown -R workshop:workshop /home/workshop/workshop"],
+  ))
 }
 
 resource "google_compute_firewall" "workshop" {
@@ -58,6 +79,10 @@ resource "google_compute_instance" "node" {
     enable_nested_virtualization = true
   }
 
-  min_cpu_platform        = var.min_cpu_platform
-  metadata_startup_script = file("${path.module}/../scripts/setup-node.sh")
+  min_cpu_platform = var.min_cpu_platform
+  metadata_startup_script = replace(
+    file("${path.module}/../scripts/setup-node.sh"),
+    "__WORKSHOP_MATERIALS_BOOTSTRAP__",
+    local.workshop_materials_bootstrap,
+  )
 }
